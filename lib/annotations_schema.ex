@@ -61,21 +61,42 @@ defmodule Annotations.Schema do
   alias Annotations.AnnotatedString
   alias Annotations.Schema
   alias Ecto.Multi
+  @doc """
+    Saves the given `AnnotatedString` to the database
+    Accepted options are:
+
+    * `:on_conflict`, which can have some value as specified for the corresponding option in `&Ecto.Repo.insert/2`
+    the default is `[on_conflict: :nothing]`
+    * `:clean_annotations`, `{true|false}` , specifies if all the annotations should be
+    removed from the database before attempting to save the set from the `AnnotatedString`
+
+    The `&save/2` function runs within a single transaction.
+  """
   def save(%AnnotatedString{str: str, annotations: anns}, options) do
     {:ok,md5}= Ecto.UUID.load :crypto.md5(str)
+    on_conflict = Keyword.get(options, :on_conflict, :nothing)
+    clean_annotations =  Keyword.get(options, :clean_annotations, true)
+    import Ecto.Query
     multi=
-      Multi.new()
-      |> Multi.insert( :string, %Schema.ContentStrings{md5: md5, content: str} )
+      if clean_annotations do
+        Multi.delete_all(Multi.new(), "delete_previous_annotations", from([a] in Schema.Annotations, where: a.string_md5 == ^md5 ))
+      else
+        Multi.new()
+      end
+    multi=
+      multi
+      |> Multi.insert( :string, %Schema.ContentStrings{md5: md5, content: str}, on_conflict: on_conflict )
     anns
       |>Enum.with_index()
-      |> Enum.reduce(multi ,  fn {ann, idx}, multi->
-        Multi.insert(multi,  "op#{idx}" , %Schema.Annotations{
-          string_md5: md5,
-          f: ann.from,
-          t: ann.to,
-          tags: Enum.map(ann.tags, &to_string/1),
-          info: ann.info })
-        end)
+      |> Enum.reduce(multi ,fn {ann, idx}, multi->
+          multi
+          |>Multi.insert("op#{idx}" , %Schema.Annotations{
+            string_md5: md5,
+            f: ann.from,
+            t: ann.to,
+            tags: Enum.map(ann.tags, &to_string/1),
+            info: ann.info })
+          end)
     |> Annotations.Repo.transaction()
   end
 end

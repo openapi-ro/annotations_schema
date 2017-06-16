@@ -12,7 +12,7 @@ defmodule Annotations.Repo.Migrations.CreateTables do
       add :string_md5, :uuid #size: 16
       add :f, :integer
       add :t, :integer
-      add :tags, :array
+      add :tags, {:array, :string}
       add :info, :map
       timestamps()
     end
