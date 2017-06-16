@@ -73,7 +73,7 @@ defmodule Annotations.Schema do
     The `&save/2` function runs within a single transaction.
   """
   def save(%AnnotatedString{str: str, annotations: anns}, options) do
-    {:ok,md5}= Ecto.UUID.load :crypto.md5(str)
+    {:ok,md5}= Ecto.UUID.load :crypto.hahs(:md5, str)
     on_conflict = Keyword.get(options, :on_conflict, :nothing)
     clean_annotations =  Keyword.get(options, :clean_annotations, true)
     import Ecto.Query
