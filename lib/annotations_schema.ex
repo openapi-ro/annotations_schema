@@ -2,7 +2,7 @@
 defmodule Annotations.Repo do
   use Ecto.Repo, otp_app: :annotations_schema
 end
-defmodule Annotations.Schema.ContentStrings do
+defmodule Annotations.Schema.ContentString do
   use Ecto.Schema
   @schema_prefix "annotations"
   @primary_key {:md5, Ecto.UUID, []}
@@ -10,10 +10,10 @@ defmodule Annotations.Schema.ContentStrings do
     #field :md5, :binary_id, primary_key: true
     field :sticky, :boolean, default: Application.get_env(:annotations_schema, :sticky, true)
     field :content, :string
-    timestamps
+    timestamps()
   end
 end
-defmodule Annotations.Schema.Annotations do
+defmodule Annotations.Schema.Annotation do
   use Ecto.Schema
   @schema_prefix "annotations"
   @primary_key false
@@ -23,7 +23,7 @@ defmodule Annotations.Schema.Annotations do
     field :t, :integer
     field :tags, {:array, :string}
     field :info, :map
-    timestamps
+    timestamps()
   end
 end
 
@@ -43,19 +43,9 @@ defmodule Annotations.Schema do
     opts = [strategy: :one_for_one, name: Annotations.Schema.Supervisor]
     Supervisor.start_link(children, opts)
   end
-  
+
   @moduledoc """
   Documentation for Annotations.Schema.
-  """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Annotations.Schema.hello
-      :world
-
   """
 
   alias Annotations.AnnotatedString
@@ -79,25 +69,26 @@ defmodule Annotations.Schema do
     import Ecto.Query
     multi=
       if clean_annotations do
-        Multi.delete_all(Multi.new(), "delete_previous_annotations", from([a] in Schema.Annotations, where: a.string_md5 == ^md5 ))
+        Multi.delete_all(Multi.new(), "delete_previous_annotations", from([a] in Schema.Annotation, where: a.string_md5 == ^md5 ))
       else
         Multi.new()
       end
     multi=
       multi
-      |> Multi.insert( :string, %Schema.ContentStrings{md5: md5, content: str}, on_conflict: on_conflict )
+      |> Multi.insert( :string, %Schema.ContentString{md5: md5, content: str}, on_conflict: on_conflict )
     anns
       |>Enum.with_index()
       |> Enum.reduce(multi ,fn {ann, idx}, multi->
           multi
-          |>Multi.insert("op#{idx}" , %Schema.Annotations{
+          |>Multi.insert("op#{idx}" , %Schema.Annotation{
             string_md5: md5,
             f: ann.from,
             t: ann.to,
             tags: Enum.map(ann.tags, &to_string/1),
             info: ann.info })
           end)
-    |> Annotations.Repo.transaction()
+    |> Annotations.Repo.transaction(, timeout: :infinity)
+  end
   def load( checksums, options ) do
     import Ecto.Query
     checksums=
