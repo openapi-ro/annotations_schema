@@ -87,7 +87,7 @@ defmodule Annotations.Schema do
             tags: Enum.map(ann.tags, &to_string/1),
             info: ann.info })
           end)
-    |> Annotations.Repo.transaction(, timeout: :infinity)
+    |> Annotations.Repo.transaction(timeout: :infinity)
   end
   def load( checksums, options ) do
     import Ecto.Query
