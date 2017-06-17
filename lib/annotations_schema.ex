@@ -98,5 +98,43 @@ defmodule Annotations.Schema do
             info: ann.info })
           end)
     |> Annotations.Repo.transaction()
+  def load( checksums, options ) do
+    import Ecto.Query
+    checksums=
+      case checksums do
+        checksum when is_bitstring(checksum) -> [checksum]
+        _-> checksums
+      end
+      |> Enum.map(&(elem(Ecto.UUID.load(&1),1)))
+    anns =
+      Annotations.Repo.all(from([a] in Schema.Annotation,
+        order_by: [a.string_md5, a.f],
+        where: a.string_md5 in ^checksums
+        ))
+      |> Enum.group_by( fn sa -> sa.string_md5 end)
+      |> Enum.map( fn {md5,schema_annotations} ->
+          per_str=
+            Enum.map(schema_annotations, fn sa ->
+              %Annotations.Annotation{
+                from: sa.f,
+                to: sa.t,
+                tags: sa.tags|> Enum.map(&String.to_atom/1),
+                info:
+                  if Keyword.get(options, :keys , :atoms) == :atoms do
+                    OA.Map.atomize_keys(sa.info)
+                  else
+                    sa.info
+                  end
+              } end)
+          {md5, per_str}
+        end)
+      |> Map.new()
+    strings =
+      Annotations.Repo.all(from([str] in Schema.ContentString, where: str.md5 in ^checksums))
+      |> Enum.map(fn str->
+        %Annotations.AnnotatedString{
+          str: str.content,
+          annotations: Map.get(anns, str.md5, []) }
+      end)
   end
 end
