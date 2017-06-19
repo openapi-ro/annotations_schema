@@ -62,8 +62,8 @@ defmodule Annotations.Schema do
 
     The `&save/2` function runs within a single transaction.
   """
-  def save(%AnnotatedString{str: str, annotations: anns}, options) do
-    {:ok,md5}= Ecto.UUID.load :crypto.hash(:md5, str)
+  def save(%AnnotatedString{str: str, annotations: anns}=ann_str, options) do
+    {:ok,md5}= Ecto.UUID.load AnnotatedString.md5(ann_str)
     on_conflict = Keyword.get(options, :on_conflict, :nothing)
     clean_annotations =  Keyword.get(options, :clean_annotations, true)
     import Ecto.Query
@@ -101,7 +101,7 @@ defmodule Annotations.Schema do
       Annotations.Repo.all(from([a] in Schema.Annotation,
         order_by: [a.string_md5, a.f],
         where: a.string_md5 in ^checksums
-        ))
+        ), timeout: :infinity)
       |> Enum.group_by( fn sa -> sa.string_md5 end)
       |> Enum.map( fn {md5,schema_annotations} ->
           per_str=
@@ -121,7 +121,7 @@ defmodule Annotations.Schema do
         end)
       |> Map.new()
     strings =
-      Annotations.Repo.all(from([str] in Schema.ContentString, where: str.md5 in ^checksums))
+      Annotations.Repo.all(from([str] in Schema.ContentString, where: str.md5 in ^checksums), timeout: :infinity)
       |> Enum.map(fn str->
         %Annotations.AnnotatedString{
           str: str.content,
