@@ -73,21 +73,23 @@ defmodule Annotations.Schema do
       else
         Multi.new()
       end
+    ts= Ecto.DateTime.utc()
     multi=
       multi
       |> Multi.insert( :string, %Schema.ContentString{md5: md5, content: str}, on_conflict: on_conflict )
-    anns
-      |>Enum.with_index()
-      |> Enum.reduce(multi ,fn {ann, idx}, multi->
-          multi
-          |>Multi.insert("op#{idx}" , %Schema.Annotation{
+      |> Multi.insert_all( "annotations" , Schema.Annotation, Enum.map(anns, fn ann ->
+          %{
             string_md5: md5,
             f: ann.from,
             t: ann.to,
             tags: Enum.map(ann.tags, &to_string/1),
-            info: ann.info })
-          end)
-    |> Annotations.Repo.transaction(timeout: :infinity)
+            info: ann.info,
+            inserted_at: ts,
+            updated_at: ts
+            }
+           end) # Enum.map
+          ) #insert_all
+      |> Annotations.Repo.transaction(timeout: :infinity)
   end
   def load( checksums, options ) do
     import Ecto.Query
