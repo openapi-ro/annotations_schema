@@ -15,7 +15,7 @@ defmodule Annotations.Schema.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     # Specify extra applications you'll use from Erlang/Elixir
-    [mod: {Annotations.Schema ,[]},extra_applications: [:logger, :postgrex, :ecto, :annotations]]
+    [mod: {Annotations.Schema ,[]},extra_applications: [:logger, :postgrex, :ecto, :annotations, :pg_insert_stage]]
   end
 
   # Dependencies can be Hex packages:
@@ -30,6 +30,7 @@ defmodule Annotations.Schema.Mixfile do
   defp deps do
     [ {:ecto, "~> 2.1.0"},
       {:annotations, path: "../annotations"},
+      {:pg_insert_stage, path: "../pg_insert_stage"},
       {:postgrex, ">= 0.0.0"}]
   end
 end

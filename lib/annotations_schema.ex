@@ -63,6 +63,35 @@ defmodule Annotations.Schema do
     The `&save/2` function runs within a single transaction.
   """
   def save(%AnnotatedString{str: str, annotations: anns}=ann_str, options) do
+    {impl, options} = Keyword.pop(options, :implementation, :ecto)
+    do_save(impl, ann_str, options)
+  end
+  defp do_save(:pg_insert_stage, %AnnotatedString{str: str, annotations: anns}=ann_str, options) do
+    {:ok,md5}= Ecto.UUID.load AnnotatedString.md5(ann_str)
+    clean_annotations =  Keyword.get(options, :clean_annotations, true)
+    import Ecto.Query
+    ts= Ecto.DateTime.utc()
+    PgInsertStage.bulk_insert([
+      %Schema.ContentString{
+        md5: md5,
+        content: str,
+        inserted_at: ts,
+        updated_at: ts
+        } |
+      Enum.map(anns, fn ann ->
+        %Schema.Annotation{
+          string_md5: md5,
+          f: ann.from,
+          t: ann.to,
+          tags: Enum.map(ann.tags, &to_string/1),
+          info: ann.info,
+          inserted_at: ts,
+          updated_at: ts
+          }
+         end)
+      ], repo: Annotations.Repo)
+  end
+  defp do_save(:ecto, %AnnotatedString{str: str, annotations: anns}=ann_str, options) do
     {:ok,md5}= Ecto.UUID.load AnnotatedString.md5(ann_str)
     on_conflict = Keyword.get(options, :on_conflict, :nothing)
     clean_annotations =  Keyword.get(options, :clean_annotations, true)
