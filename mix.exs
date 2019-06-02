@@ -28,9 +28,10 @@ defmodule Annotations.Schema.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:ecto, "~> 2.1.0"},
+    [ {:postgrex, ">= 0.0.0"},
+      {:ecto_sql, "~> 3.0"},
       {:annotations, path: "../annotations"},
-      {:pg_insert_stage, path: "../pg_insert_stage"},
-      {:postgrex, ">= 0.0.0"}]
+      {:pg_insert_stage, path: "../pg_insert_stage"}
+    ]
   end
 end

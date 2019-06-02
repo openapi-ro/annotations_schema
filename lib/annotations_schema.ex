@@ -1,6 +1,17 @@
 
 defmodule Annotations.Repo do
-  use Ecto.Repo, otp_app: :annotations_schema
+  use Ecto.Repo,
+    otp_app: :annotations_schema,
+    adapter: Ecto.Adapters.Postgres
+  def init(_type, config) do
+    {:ok, maybe_parse_url(config)}
+  end
+  def maybe_parse_url(config) do
+    case Keyword.get(config, :url) do
+      {:system, env_name} -> Keyword.replace!(config,:url , System.get_env(env_name))
+      _ -> config
+    end
+  end
 end
 defmodule Annotations.Schema.ContentString do
   use Ecto.Schema
