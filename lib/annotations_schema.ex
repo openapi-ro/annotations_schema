@@ -39,6 +39,7 @@ defmodule Annotations.Schema.Annotation do
 end
 
 defmodule Annotations.Schema do
+  require Logger
   use Application
    def start(_type, _args) do
     import Supervisor.Spec
@@ -62,6 +63,12 @@ defmodule Annotations.Schema do
   alias Annotations.AnnotatedString
   alias Annotations.Schema
   alias Ecto.Multi
+  @doc """
+    Same as `&save/2` with default options (`[on_conflict: :nothing]`)
+  """
+  def save(%AnnotatedString{}=ann_str) do
+    save(ann_str, on_conflict: :nothing)
+  end
   @doc """
     Saves the given `AnnotatedString` to the database
     Accepted options are:
@@ -113,7 +120,9 @@ defmodule Annotations.Schema do
       else
         Multi.new()
       end
-    ts= Ecto.DateTime.utc()
+    ts=
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.truncate(:second)
     multi=
       multi
       |> Multi.insert( :string, %Schema.ContentString{md5: md5, content: str}, on_conflict: on_conflict )
@@ -131,13 +140,18 @@ defmodule Annotations.Schema do
           ) #insert_all
       |> Annotations.Repo.transaction(timeout: :infinity)
   end
-  def load( checksums, options ) do
+  def load(checksum, options) when is_bitstring(checksum) do
+    case load([checksum], options) do
+      [ret] -> ret
+      other->
+        Logger.error("No AnnotatedString found for checksum: \"#{checksum}\". Ret. Value: #{inspect(other)}")
+        nil
+    end
+  end
+  def load( checksums, options ) when is_list(checksums) do
     import Ecto.Query
     checksums=
-      case checksums do
-        checksum when is_bitstring(checksum) -> [checksum]
-        _-> checksums
-      end
+      checksums
       |> Enum.map(&(elem(Ecto.UUID.load(&1),1)))
     anns =
       Annotations.Repo.all(from([a] in Schema.Annotation,
